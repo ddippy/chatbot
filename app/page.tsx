@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
+import { searchDocuments } from "../data/documents";
 
 // กำหนดรูปแบบข้อมูลของข้อความแต่ละอันในบทสนทนา
 type ChatMessage = {
@@ -14,21 +15,30 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
 
-  // รับคำถามจากฟอร์ม แล้วเพิ่มคำถามกับคำตอบตัวอย่างลงในบทสนทนา
+  // รับคำถามจากฟอร์ม แล้วค้นข้อความในข้อมูลตัวอย่าง
   function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedQuestion = question.trim();
     if (!trimmedQuestion) return;
 
+    const results = searchDocuments(trimmedQuestion);
+
+    // ถ้าค้นเจอ ให้แสดงข้อความพร้อมชื่อเอกสารและเลขหน้า
+    const answer =
+      results.length > 0
+        ? results
+            .map(
+              (item) =>
+                `${item.content}\nแหล่งอ้างอิง: ${item.documentName} หน้า ${item.page}`,
+            )
+            .join("\n\n")
+        : "ยังไม่พบข้อมูลที่ตรงกับคำค้นนี้ในเอกสารตัวอย่าง";
+
     setMessages((currentMessages) => [
       ...currentMessages,
       { role: "user", content: trimmedQuestion },
-      {
-        role: "assistant",
-        content:
-          "รับคำถามแล้วครับ ตอนนี้หน้านี้ยังไม่ได้เชื่อม AI หรือเอกสาร คำตอบนี้เป็นเพียงข้อความตัวอย่างสำหรับทดสอบการส่งคำถาม",
-      },
+      { role: "assistant", content: answer },
     ]);
     setQuestion("");
   }
@@ -61,16 +71,24 @@ export default function Home() {
           แล้วผู้ช่วยจะค้นหาคำตอบจากเอกสารของมหาวิทยาลัย
         </p>
 
-        {/* ตัวอย่างหัวข้อที่ผู้ใช้อาจอยากถาม */}
+        {/* ปุ่มตัวอย่างคำถาม กดแล้วนำข้อความไปใส่ในช่องพิมพ์ */}
         <div className="mt-9 grid w-full gap-3 sm:grid-cols-2">
-          <div className="rounded-xl border border-white/10 bg-white/[.03] p-4">
-            <p className="text-sm font-medium text-white/85">หลักสูตรและสาขาวิชา</p>
-            <p className="mt-1.5 text-xs leading-5 text-white/45">คณะมีหลักสูตรหรือสาขาอะไรบ้าง?</p>
-          </div>
-          <div className="rounded-xl border border-white/10 bg-white/[.03] p-4">
-            <p className="text-sm font-medium text-white/85">การเรียนและการลงทะเบียน</p>
-            <p className="mt-1.5 text-xs leading-5 text-white/45">ดูข้อมูลกำหนดการลงทะเบียนได้จากที่ไหน?</p>
-          </div>
+          <button
+            type="button"
+            onClick={() => setQuestion("ทะเบียน")}
+            className="rounded-xl border border-white/10 bg-white/[.03] p-4 text-left transition hover:border-amber-200/40 hover:bg-white/[.06]"
+          >
+            <p className="text-sm font-medium text-white/85">ข้อมูลฝ่ายทะเบียน</p>
+            <p className="mt-1.5 text-xs leading-5 text-white/45">ทะเบียน</p>
+          </button>
+          <button
+            type="button"
+            onClick={() => setQuestion("คำร้อง")}
+            className="rounded-xl border border-white/10 bg-white/[.03] p-4 text-left transition hover:border-amber-200/40 hover:bg-white/[.06]"
+          >
+            <p className="text-sm font-medium text-white/85">การยื่นคำร้อง</p>
+            <p className="mt-1.5 text-xs leading-5 text-white/45">คำร้อง</p>
+          </button>
         </div>
 
         {/* แสดงคำถามและคำตอบตัวอย่างที่ส่งในหน้าเว็บ */}
@@ -82,7 +100,7 @@ export default function Home() {
                 className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6 ${
                   message.role === "user"
                     ? "self-end bg-amber-200 text-[#17130a]"
-                    : "self-start border border-white/10 bg-[#12161e] text-white/75"
+                    : "self-start whitespace-pre-line border border-white/10 bg-[#12161e] text-white/75"
                 }`}
               >
                 {message.content}
@@ -118,7 +136,7 @@ export default function Home() {
           </div>
         </form>
         <p className="mt-3 text-center text-xs text-white/35">
-          คำตอบที่แสดงเป็นข้อความตัวอย่าง ยังไม่มีการค้นจากเอกสาร
+          ค้นจากข้อมูลเอกสารตัวอย่าง ยังไม่มีการใช้ AI
         </p>
       </section>
 
