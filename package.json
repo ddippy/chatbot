@@ -7,16 +7,17 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "ocr:pdf": "node scripts/ocr-pdf.mjs",
-    "ocr:groq": "node scripts/groq-vision-ocr.mjs"
+    "pdf:extract": "node scripts/extract-pdf-text.mjs",
+    "pdf:embed": "node scripts/embed-pdf-chunks.mjs",
+    "pdf:upload": "node scripts/upload-embedded-chunks.mjs"
   },
   "dependencies": {
-    "@napi-rs/canvas": "^1.1.1",
+    "@huggingface/transformers": "^4.3.2",
+    "@supabase/supabase-js": "^2.119.0",
     "next": "16.4.6",
     "pdfjs-dist": "^6.5.438",
     "react": "19.3.0",
-    "react-dom": "19.3.0",
-    "tesseract.js": "^7.0.0"
+    "react-dom": "19.3.0"
   },
   "devDependencies": {
     "@tailwindcss/turbopack": "4.3.3",

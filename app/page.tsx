@@ -1,46 +1,71 @@
 "use client";
 
 import { useState, type FormEvent } from "react";
-import { searchDocuments } from "../data/documents";
+
+// กำหนดรูปแบบข้อมูลแหล่งอ้างอิงจาก API
+type ChatSource = {
+  documentName: string;
+  pageNumber: number;
+  similarity: number;
+};
 
 // กำหนดรูปแบบข้อมูลของข้อความแต่ละอันในบทสนทนา
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
+  sources?: ChatSource[];
 };
 
-// สร้างหน้าแชตตัวอย่าง โดยคำตอบยังเป็นข้อความจำลอง
+// สร้างหน้าแชตและเรียก API ฝั่งเซิร์ฟเวอร์เพื่อค้นเอกสารและตอบคำถาม
 export default function Home() {
   // เก็บข้อความที่กำลังพิมพ์และประวัติข้อความบนหน้านี้
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const [isLoading, setIsLoading] = useState(false);
 
-  // รับคำถามจากฟอร์ม แล้วค้นข้อความในข้อมูลตัวอย่าง
-  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+  // ส่งคำถามไป API แล้วเพิ่มคำตอบและแหล่งอ้างอิงกลับมาในบทสนทนา
+  async function handleSubmit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
 
     const trimmedQuestion = question.trim();
-    if (!trimmedQuestion) return;
-
-    const results = searchDocuments(trimmedQuestion);
-
-    // ถ้าค้นเจอ ให้แสดงข้อความพร้อมชื่อเอกสารและเลขหน้า
-    const answer =
-      results.length > 0
-        ? results
-            .map(
-              (item) =>
-                `${item.content}\nแหล่งอ้างอิง: ${item.documentName} หน้า ${item.page}`,
-            )
-            .join("\n\n")
-        : "ยังไม่พบข้อมูลที่ตรงกับคำค้นนี้ในเอกสารตัวอย่าง";
+    if (!trimmedQuestion || isLoading) return;
 
     setMessages((currentMessages) => [
       ...currentMessages,
       { role: "user", content: trimmedQuestion },
-      { role: "assistant", content: answer },
     ]);
     setQuestion("");
+    setIsLoading(true);
+
+    try {
+      const response = await fetch("/api/chat", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ question: trimmedQuestion }),
+      });
+      const result = await response.json();
+
+      if (!response.ok) {
+        throw new Error(result.error || "ระบบยังตอบคำถามไม่ได้");
+      }
+
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        {
+          role: "assistant",
+          content: result.answer,
+          sources: result.sources,
+        },
+      ]);
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "กรุณาลองใหม่อีกครั้ง";
+      setMessages((currentMessages) => [
+        ...currentMessages,
+        { role: "assistant", content: `ขออภัยครับ ${message}` },
+      ]);
+    } finally {
+      setIsLoading(false);
+    }
   }
 
   return (
@@ -67,31 +92,10 @@ export default function Home() {
           สวัสดี มีอะไรให้ช่วยไหม?
         </h1>
         <p className="mt-4 max-w-xl text-center text-sm leading-7 text-white/55 sm:text-base">
-          ถามเกี่ยวกับคณะวิทยาศาสตร์และเทคโนโลยี มทร.กรุงเทพ
-          แล้วผู้ช่วยจะค้นหาคำตอบจากเอกสารของมหาวิทยาลัย
+          ถามจากเอกสารที่เพิ่มเข้าระบบ ระบบจะค้นข้อความที่เกี่ยวข้องและตอบพร้อมแหล่งอ้างอิง
         </p>
 
-        {/* ปุ่มตัวอย่างคำถาม กดแล้วนำข้อความไปใส่ในช่องพิมพ์ */}
-        <div className="mt-9 grid w-full gap-3 sm:grid-cols-2">
-          <button
-            type="button"
-            onClick={() => setQuestion("ทะเบียน")}
-            className="rounded-xl border border-white/10 bg-white/[.03] p-4 text-left transition hover:border-amber-200/40 hover:bg-white/[.06]"
-          >
-            <p className="text-sm font-medium text-white/85">ข้อมูลฝ่ายทะเบียน</p>
-            <p className="mt-1.5 text-xs leading-5 text-white/45">ทะเบียน</p>
-          </button>
-          <button
-            type="button"
-            onClick={() => setQuestion("คำร้อง")}
-            className="rounded-xl border border-white/10 bg-white/[.03] p-4 text-left transition hover:border-amber-200/40 hover:bg-white/[.06]"
-          >
-            <p className="text-sm font-medium text-white/85">การยื่นคำร้อง</p>
-            <p className="mt-1.5 text-xs leading-5 text-white/45">คำร้อง</p>
-          </button>
-        </div>
-
-        {/* แสดงคำถามและคำตอบตัวอย่างที่ส่งในหน้าเว็บ */}
+        {/* แสดงข้อความ คำตอบ และแหล่งอ้างอิงในบทสนทนา */}
         {messages.length > 0 && (
           <div aria-live="polite" className="mt-8 flex w-full flex-col gap-4">
             {messages.map((message, index) => (
@@ -104,9 +108,26 @@ export default function Home() {
                 }`}
               >
                 {message.content}
+                {message.role === "assistant" && message.sources && message.sources.length > 0 && (
+                  <div className="mt-3 border-t border-white/10 pt-3 text-xs text-white/55">
+                    <p className="mb-1.5 font-medium text-amber-200/80">แหล่งอ้างอิง</p>
+                    {message.sources.map((source) => (
+                      <p key={`${source.documentName}-${source.pageNumber}`}>
+                        {source.documentName} หน้า {source.pageNumber}
+                      </p>
+                    ))}
+                  </div>
+                )}
               </div>
             ))}
           </div>
+        )}
+
+        {/* แจ้งสถานะระหว่างค้นเอกสารและสร้างคำตอบ */}
+        {isLoading && (
+          <p aria-live="polite" className="mt-4 w-full text-sm text-white/45">
+            กำลังค้นเอกสารและเรียบเรียงคำตอบ...
+          </p>
         )}
 
         {/* รับข้อความที่พิมพ์ แล้วส่งให้ฟังก์ชัน handleSubmit */}
@@ -128,15 +149,15 @@ export default function Home() {
             />
             <button
               type="submit"
-              disabled={!question.trim()}
+              disabled={!question.trim() || isLoading}
               className="rounded-xl bg-amber-200 px-4 py-3 text-sm font-medium text-[#17130a] transition enabled:hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
-              ส่งคำถาม
+              {isLoading ? "กำลังคิด..." : "ส่งคำถาม"}
             </button>
           </div>
         </form>
         <p className="mt-3 text-center text-xs text-white/35">
-          ค้นจากข้อมูลเอกสารตัวอย่าง ยังไม่มีการใช้ AI
+          หากไม่พบข้อมูลสนับสนุน ระบบจะแจ้งว่าไม่มีคำตอบในเอกสาร
         </p>
       </section>
 
