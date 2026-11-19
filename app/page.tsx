@@ -1,6 +1,14 @@
 "use client";
 
-import { useState, type FormEvent } from "react";
+import { useEffect, useState, type FormEvent } from "react";
+
+// กำหนดรายชื่อ AI และ Model ที่ API ส่งมาให้หน้าเว็บ
+type AiProviderOption = {
+  id: "google" | "groq";
+  name: string;
+  model: string;
+  enabled: boolean;
+};
 
 // กำหนดรูปแบบข้อมูลแหล่งอ้างอิงจาก API
 type ChatSource = {
@@ -14,6 +22,8 @@ type ChatMessage = {
   role: "user" | "assistant";
   content: string;
   sources?: ChatSource[];
+  provider?: string;
+  model?: string;
 };
 
 // สร้างหน้าแชตและเรียก API ฝั่งเซิร์ฟเวอร์เพื่อค้นเอกสารและตอบคำถาม
@@ -22,6 +32,28 @@ export default function Home() {
   const [question, setQuestion] = useState("");
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isLoading, setIsLoading] = useState(false);
+  const [aiProviders, setAiProviders] = useState<AiProviderOption[]>([]);
+  const [selectedProvider, setSelectedProvider] = useState<"google" | "groq">("google");
+  const selectedAi = aiProviders.find((provider) => provider.id === selectedProvider);
+
+  // ขอชื่อ AI และ Model จาก Server เพื่อแสดงในส่วนหัวของเว็บไซต์
+  useEffect(() => {
+    const controller = new AbortController();
+
+    fetch("/api/chat", { signal: controller.signal })
+      .then(async (response) => {
+        if (!response.ok) throw new Error("โหลดข้อมูล AI ไม่สำเร็จ");
+        return (await response.json()) as { providers: AiProviderOption[] };
+      })
+      .then((data) => {
+        setAiProviders(data.providers);
+        const firstEnabled = data.providers.find((provider) => provider.enabled);
+        if (firstEnabled) setSelectedProvider(firstEnabled.id);
+      })
+      .catch(() => {});
+
+    return () => controller.abort();
+  }, []);
 
   // ส่งคำถามไป API แล้วเพิ่มคำตอบและแหล่งอ้างอิงกลับมาในบทสนทนา
   async function handleSubmit(event: FormEvent<HTMLFormElement>) {
@@ -41,7 +73,7 @@ export default function Home() {
       const response = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ question: trimmedQuestion }),
+        body: JSON.stringify({ question: trimmedQuestion, provider: selectedProvider }),
       });
       const result = await response.json();
 
@@ -55,6 +87,8 @@ export default function Home() {
           role: "assistant",
           content: result.answer,
           sources: result.sources,
+          provider: result.provider,
+          model: result.model,
         },
       ]);
     } catch (error) {
@@ -78,7 +112,9 @@ export default function Home() {
           </div>
           <div>
             <p className="font-semibold tracking-wide">RMUTK AI</p>
-            <p className="mt-0.5 text-xs text-white/45">ผู้ช่วยข้อมูลมหาวิทยาลัย</p>
+            <p className="mt-0.5 text-xs text-white/45">
+              ผู้ช่วยข้อมูลมหาวิทยาลัย · {selectedAi ? `${selectedAi.name} (${selectedAi.model})` : "กำลังโหลดชื่อ Model..."}
+            </p>
           </div>
         </div>
       </header>
@@ -108,6 +144,11 @@ export default function Home() {
                 }`}
               >
                 {message.content}
+                {message.role === "assistant" && message.provider && message.model && (
+                  <p className="mt-2 text-[11px] text-white/35">
+                    {message.provider} · {message.model}
+                  </p>
+                )}
                 {message.role === "assistant" && message.sources && message.sources.length > 0 && (
                   <div className="mt-3 border-t border-white/10 pt-3 text-xs text-white/55">
                     <p className="mb-1.5 font-medium text-amber-200/80">แหล่งอ้างอิง</p>
@@ -138,6 +179,25 @@ export default function Home() {
           <label htmlFor="question" className="sr-only">
             พิมพ์คำถามเกี่ยวกับมหาวิทยาลัย
           </label>
+          <div className="flex flex-wrap items-center gap-2 px-3 pb-2 text-xs">
+            <label htmlFor="ai-provider" className="text-white/45">เลือก AI</label>
+            <select
+              id="ai-provider"
+              value={selectedProvider}
+              onChange={(event) => setSelectedProvider(event.target.value as "google" | "groq")}
+              disabled={isLoading}
+              className="rounded-lg border border-white/10 bg-[#0b0d12] px-2 py-1.5 text-white outline-none focus:border-amber-200/50 disabled:opacity-50"
+            >
+              {aiProviders.map((provider) => (
+                <option key={provider.id} value={provider.id} disabled={!provider.enabled}>
+                  {provider.name}{provider.enabled ? "" : " (ยังไม่ได้ตั้งค่า)"}
+                </option>
+              ))}
+            </select>
+            <span className="text-white/35">
+              Model: {selectedAi?.model ?? "กำลังโหลด..."}
+            </span>
+          </div>
           <div className="flex items-center gap-2">
             <input
               id="question"

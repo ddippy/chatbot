@@ -1,13 +1,13 @@
 import { pipeline } from "@huggingface/transformers";
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { basename, join, resolve } from "node:path";
-import { replaceUnpairedSurrogates } from "./text-utils.mjs";
+import { getCliArguments, replaceUnpairedSurrogates } from "./text-utils.mjs";
 
 const MODEL_NAME = "intfloat/multilingual-e5-small";
 
 // อ่าน Chunk จากไฟล์ที่สกัดข้อความ PDF แล้วสร้าง Vector ทีละรายการ
 async function main() {
-  const inputArgument = process.argv[2];
+  const [inputArgument] = getCliArguments();
 
   if (!inputArgument) {
     throw new Error('กรุณาระบุไฟล์ข้อความ เช่น node scripts/embed-pdf-chunks.mjs "tmp/pdfs/ตัวอย่าง.text.json"');
@@ -16,6 +16,12 @@ async function main() {
   const inputPath = resolve(inputArgument);
   const input = JSON.parse(await readFile(inputPath, "utf8"));
   const chunks = input.chunks;
+
+  if (Array.isArray(input.ocrRequiredPages) && input.ocrRequiredPages.length > 0) {
+    throw new Error(
+      `ยังสร้าง Vector ไม่ได้ ต้อง OCR หน้า ${input.ocrRequiredPages.join(", ")} ก่อน`,
+    );
+  }
 
   if (!Array.isArray(chunks) || chunks.length === 0) {
     throw new Error("ไม่พบรายการ chunks ในไฟล์ กรุณาสกัดข้อความ PDF และแบ่ง Chunk ก่อน");

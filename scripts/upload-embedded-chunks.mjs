@@ -1,7 +1,7 @@
 import { createClient } from "@supabase/supabase-js";
 import { readFile } from "node:fs/promises";
 import { resolve } from "node:path";
-import { replaceUnpairedSurrogates } from "./text-utils.mjs";
+import { getCliArguments, replaceUnpairedSurrogates } from "./text-utils.mjs";
 
 // โหลด URL และ Secret Key จากไฟล์ในเครื่อง โดยไม่เขียน key ลงในโค้ด
 try {
@@ -41,7 +41,7 @@ function prepareRows(input) {
 
 // อัปโหลด Chunk ที่มี Vector แล้วเข้า Supabase โดยป้องกันการนำเข้าไฟล์ซ้ำ
 async function main() {
-  const inputArgument = process.argv[2];
+  const [inputArgument] = getCliArguments();
   const supabaseUrl = process.env.SUPABASE_URL;
   const supabaseSecretKey =
     process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;

@@ -8,13 +8,16 @@
     "start": "next start",
     "lint": "eslint",
     "pdf:extract": "node scripts/extract-pdf-text.mjs",
+    "pdf:ocr:iapp": "node scripts/ocr-pdf-iapp.mjs",
     "pdf:embed": "node scripts/embed-pdf-chunks.mjs",
-    "pdf:upload": "node scripts/upload-embedded-chunks.mjs"
+    "pdf:upload": "node scripts/upload-embedded-chunks.mjs",
+    "pdf:process": "node scripts/process-pdf.mjs"
   },
   "dependencies": {
     "@huggingface/transformers": "^4.3.2",
     "@supabase/supabase-js": "^2.119.0",
     "next": "16.4.6",
+    "pdf-lib": "^1.17.1",
     "pdfjs-dist": "^6.5.438",
     "react": "19.3.0",
     "react-dom": "19.3.0"
