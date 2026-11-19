@@ -1,5 +1,38 @@
-// สร้างหน้าแชตตัวอย่าง โดยตอนนี้ยังไม่มีการส่งคำถามไปประมวลผล
+"use client";
+
+import { useState, type FormEvent } from "react";
+
+// กำหนดรูปแบบข้อมูลของข้อความแต่ละอันในบทสนทนา
+type ChatMessage = {
+  role: "user" | "assistant";
+  content: string;
+};
+
+// สร้างหน้าแชตตัวอย่าง โดยคำตอบยังเป็นข้อความจำลอง
 export default function Home() {
+  // เก็บข้อความที่กำลังพิมพ์และประวัติข้อความบนหน้านี้
+  const [question, setQuestion] = useState("");
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
+
+  // รับคำถามจากฟอร์ม แล้วเพิ่มคำถามกับคำตอบตัวอย่างลงในบทสนทนา
+  function handleSubmit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+
+    const trimmedQuestion = question.trim();
+    if (!trimmedQuestion) return;
+
+    setMessages((currentMessages) => [
+      ...currentMessages,
+      { role: "user", content: trimmedQuestion },
+      {
+        role: "assistant",
+        content:
+          "รับคำถามแล้วครับ ตอนนี้หน้านี้ยังไม่ได้เชื่อม AI หรือเอกสาร คำตอบนี้เป็นเพียงข้อความตัวอย่างสำหรับทดสอบการส่งคำถาม",
+      },
+    ]);
+    setQuestion("");
+  }
+
   return (
     <main className="flex min-h-screen flex-col bg-[#0b0d12] text-white">
       {/* แถบด้านบนแสดงชื่อผู้ช่วยของมหาวิทยาลัย */}
@@ -40,8 +73,29 @@ export default function Home() {
           </div>
         </div>
 
-        {/* ช่องพิมพ์และปุ่มส่งเป็นหน้าตาตัวอย่าง ยังไม่เชื่อมการทำงาน */}
-        <div className="mt-8 w-full rounded-2xl border border-white/10 bg-[#12161e] p-2 shadow-2xl shadow-black/20">
+        {/* แสดงคำถามและคำตอบตัวอย่างที่ส่งในหน้าเว็บ */}
+        {messages.length > 0 && (
+          <div aria-live="polite" className="mt-8 flex w-full flex-col gap-4">
+            {messages.map((message, index) => (
+              <div
+                key={`${message.role}-${index}`}
+                className={`max-w-[90%] rounded-2xl px-4 py-3 text-sm leading-6 ${
+                  message.role === "user"
+                    ? "self-end bg-amber-200 text-[#17130a]"
+                    : "self-start border border-white/10 bg-[#12161e] text-white/75"
+                }`}
+              >
+                {message.content}
+              </div>
+            ))}
+          </div>
+        )}
+
+        {/* รับข้อความที่พิมพ์ แล้วส่งให้ฟังก์ชัน handleSubmit */}
+        <form
+          onSubmit={handleSubmit}
+          className="mt-8 w-full rounded-2xl border border-white/10 bg-[#12161e] p-2 shadow-2xl shadow-black/20"
+        >
           <label htmlFor="question" className="sr-only">
             พิมพ์คำถามเกี่ยวกับมหาวิทยาลัย
           </label>
@@ -50,19 +104,21 @@ export default function Home() {
               id="question"
               type="text"
               placeholder="พิมพ์คำถามของคุณ..."
+              value={question}
+              onChange={(event) => setQuestion(event.target.value)}
               className="min-w-0 flex-1 bg-transparent px-3 py-3 text-sm text-white outline-none placeholder:text-white/35"
             />
             <button
-              type="button"
-              disabled
-              className="rounded-xl bg-amber-200 px-4 py-3 text-sm font-medium text-[#17130a] opacity-50"
+              type="submit"
+              disabled={!question.trim()}
+              className="rounded-xl bg-amber-200 px-4 py-3 text-sm font-medium text-[#17130a] transition enabled:hover:bg-amber-100 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ส่งคำถาม
             </button>
           </div>
-        </div>
+        </form>
         <p className="mt-3 text-center text-xs text-white/35">
-          ขั้นนี้เป็นหน้าตาตัวอย่าง ปุ่มส่งคำถามยังไม่ทำงาน
+          คำตอบที่แสดงเป็นข้อความตัวอย่าง ยังไม่มีการค้นจากเอกสาร
         </p>
       </section>
 
