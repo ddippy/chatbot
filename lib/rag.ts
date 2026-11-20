@@ -1,7 +1,9 @@
 import "server-only";
 
-import { pipeline } from "@huggingface/transformers";
+import { env, pipeline } from "@huggingface/transformers";
 import { createClient } from "@supabase/supabase-js";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { selectMatchesForAcademicYear } from "./academic-year";
 import { generateGoogleAnswer } from "./llm/google";
 import { generateGroqAnswer } from "./llm/groq";
@@ -9,6 +11,11 @@ import { generateGroqAnswer } from "./llm/groq";
 const EMBEDDING_MODEL = "intfloat/multilingual-e5-small";
 const SEARCH_CANDIDATES = 20;
 const MAX_CONTEXT_MATCHES = 5;
+
+// Vercel เขียนไฟล์ใน node_modules ไม่ได้ จึงเก็บ cache ของโมเดลไว้ในพื้นที่ชั่วคราว
+if (process.env.VERCEL) {
+  env.cacheDir = join(tmpdir(), "rmutk-transformers-cache");
+}
 
 type RetrievedChunk = {
   document_name: string;
