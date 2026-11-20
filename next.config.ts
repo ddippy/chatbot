@@ -7,7 +7,10 @@ const nextConfig: NextConfig = {
   // ให้ Next.js คง ONNX Runtime เป็น Node.js package และแนบไปกับ API ที่ใช้ RAG
   serverExternalPackages: ["@huggingface/transformers", "onnxruntime-node"],
   outputFileTracingIncludes: {
-    "/api/chat": ["./node_modules/onnxruntime-node/**/*"],
+    "/api/chat": [
+      "./node_modules/onnxruntime-node/**/*",
+      "./node_modules/.pnpm/@huggingface+transformers@*/node_modules/onnxruntime-node/**/*",
+    ],
   },
   turbopack: {
     rules: {
