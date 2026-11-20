@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { answerFromDocuments, type AiProvider } from "@/lib/rag";
+import { detectChatIntent } from "@/lib/chat-intent";
+import { answerGeneralQuestion } from "@/lib/llm/general";
 import { getGoogleModelName, GOOGLE_PROVIDER_NAME } from "@/lib/llm/google";
 import { getGroqModelName, GROQ_PROVIDER_NAME } from "@/lib/llm/groq";
 import { replaceUnpairedSurrogates } from "@/scripts/text-utils.mjs";
@@ -45,6 +47,20 @@ export async function POST(request: Request) {
   }
 
   const provider = rawProvider as AiProvider;
+  const question = replaceUnpairedSurrogates(rawQuestion.trim());
+  const intent = detectChatIntent(question);
+
+  // ตอบคำทักทายทันทีโดยไม่โหลด Embedding Model หรือค้น Supabase
+  if (intent === "smalltalk") {
+    const normalized = question.toLocaleLowerCase("th-TH");
+    const answer = /(ขอบคุณ|ขอบใจ|thanks|thankyou)/iu.test(normalized)
+      ? "ยินดีครับ ถ้ามีคำถามอื่นถามได้เลยครับ"
+      : /(ลาก่อน|บาย)/iu.test(normalized)
+        ? "ไว้มีคำถามเพิ่มเติม แวะมาคุยกันได้ครับ"
+        : "สวัสดีครับ ถามเรื่องทั่วไปหรือข้อมูลมหาวิทยาลัยได้เลยครับ";
+    return NextResponse.json({ answer, sources: [], answerType: "smalltalk" });
+  }
+
   const apiKey = provider === "google" ? process.env.GEMINI_API_KEY : process.env.GROQ_API_KEY;
   if (!apiKey) {
     return NextResponse.json(
@@ -53,14 +69,20 @@ export async function POST(request: Request) {
     );
   }
 
-  const question = replaceUnpairedSurrogates(rawQuestion.trim());
-
   try {
+    if (intent === "general") {
+      const answer = await answerGeneralQuestion(question, provider);
+      const selected = provider === "google"
+        ? { provider: GOOGLE_PROVIDER_NAME, model: getGoogleModelName() }
+        : { provider: GROQ_PROVIDER_NAME, model: getGroqModelName() };
+      return NextResponse.json({ answer, sources: [], answerType: "general", ...selected });
+    }
+
     const result = await answerFromDocuments(question, provider);
     const selected = provider === "google"
       ? { provider: GOOGLE_PROVIDER_NAME, model: getGoogleModelName() }
       : { provider: GROQ_PROVIDER_NAME, model: getGroqModelName() };
-    return NextResponse.json({ ...result, ...selected });
+    return NextResponse.json({ ...result, answerType: "university", ...selected });
   } catch (error) {
     const message = error instanceof Error ? error.message : "ระบบยังตอบคำถามไม่ได้";
     const status = message.includes("โควตา Google AI เต็ม") || message.includes("โควตา Groq เต็ม")
