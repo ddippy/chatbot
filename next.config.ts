@@ -10,6 +10,8 @@ const nextConfig: NextConfig = {
     "/api/chat": [
       "./node_modules/onnxruntime-node/**/*",
       "./node_modules/.pnpm/@huggingface+transformers@*/node_modules/onnxruntime-node/**/*",
+      "./node_modules/.pnpm/node_modules/onnxruntime-node/**/*",
+      "./node_modules/.pnpm/node_modules/onnxruntime-common/**/*",
     ],
   },
   turbopack: {
